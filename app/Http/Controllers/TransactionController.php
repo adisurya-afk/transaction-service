@@ -175,4 +175,58 @@ class TransactionController extends Controller
             'meta' => null,
         ])->setStatusCode(200);
     }
+
+    /**
+     * Get transaction for graphic.
+     *
+     * @param \Illuminate\Http\Request
+     * @param  int  $id
+     * 
+     * @return Response
+     */
+    public function GetTrxGraphicSpecific($year, $type)
+    {
+        $months = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+
+        $data = [];
+        if ($type == 'IN') {
+            $data = Transaction::select(DB::raw('SUM(total) as total'), DB::raw("to_char(date, 'Month') as month"))
+            ->whereYear('date', $year)
+            ->where('type', 'IN')
+            ->groupBy(DB::raw("to_char(date, 'YYYY-MM'), to_char(date, 'Month')"))
+            ->get();
+        } else {
+            $data = Transaction::select(DB::raw('SUM(total) as total'), DB::raw("to_char(date, 'Month') as month"))
+            ->whereYear('date', $year)
+            ->where('type', 'OUT')
+            ->groupBy(DB::raw("to_char(date, 'YYYY-MM'), to_char(date, 'Month')"))
+            ->get();
+        }
+        $indexedData = [];
+        // dd($data);
+        foreach ($data as $item) {
+            $indexedData[trim($item->month)] = (int)$item->total;
+        }
+        
+        $result = [];
+        foreach ($months as $month) {
+            $formattedMonth = strtolower($month);
+            $total = isset($indexedData[$month]) ? $indexedData[$month] : 0;
+            $result[] = ['month' => $formattedMonth, 'total' => $total];
+        }
+        
+        // Untuk menambahkan bulan yang belum ada dalam data
+        for ($i = count($result); $i < 12; $i++) {
+            $result[] = ['month' => strtolower($months[$i]), 'total' => 0];
+        }
+
+        return response()->json([
+            'message' => 'Success',
+            'data' => $result,
+            'meta' => null,
+        ])->setStatusCode(200);
+    }
 }

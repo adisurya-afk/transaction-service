@@ -37,7 +37,7 @@ class TransactionController extends Controller
         if ($qSort != null) $transactions = $transactions->orderBy('date', $qSort);
         else $transactions = $transactions->orderBy('date', 'desc');
 
-        if ($qName != null) $transactions = $transactions->where('items.name', $qName);
+        if ($qName != null) $transactions = $transactions->where('items.name', 'ilike', '%'.$qName.'%');
 
         $transactions = $transactions->get(['transactions.*', 'items.name as items_name']);
         $request->message = 'Success';
@@ -222,6 +222,65 @@ class TransactionController extends Controller
         for ($i = count($result); $i < 12; $i++) {
             $result[] = ['month' => strtolower($months[$i]), 'total' => 0];
         }
+
+        return response()->json([
+            'message' => 'Success',
+            'data' => $result,
+            'meta' => null,
+        ])->setStatusCode(200);
+    }
+
+    /**
+     * Get report Monthly.
+     *
+     * @param \Illuminate\Http\Request
+     * @param  string  $month
+     * @param  string  $year
+     * 
+     * @return Response
+     */
+    public function GetReportMonthly($month, $year) {
+        $monthYear = "${month}-${year}";
+        // $result = DB::table('transactions as t')
+        // ->join('items as i', 'i.id', '=', 't.items_id')
+        // ->select('i.name')
+        // ->selectRaw("SUM(CASE WHEN t.type = 'IN' THEN t.total ELSE 0 END) AS total_in")
+        // ->selectRaw("SUM(CASE WHEN t.type = 'OUT' THEN t.total ELSE 0 END) AS total_out")
+        // ->whereRaw("to_char(t.date, 'MM-YYYY') = ?", $monthYear)
+        // ->groupBy('i.name')
+        // ->get();
+
+
+        // Subquery untuk current_month_stock (cms)
+        $currentMonthStock = DB::table('transactions as t')
+        ->join('items as i', 'i.id', '=', 't.items_id')
+        ->select('i.name')
+        ->selectRaw("SUM(CASE WHEN t.type = 'IN' THEN t.total ELSE 0 END) AS total_in")
+        ->selectRaw("SUM(CASE WHEN t.type = 'OUT' THEN t.total ELSE 0 END) AS total_out")
+        ->whereRaw("TO_CHAR(t.date, 'MM-YYYY') = ?", [$monthYear])
+        ->groupBy('i.name');
+
+        // Subquery untuk first_stock (sa)
+        $stockAwal = DB::table('transactions as t')
+        ->join('items as i', 'i.id', '=', 't.items_id')
+        ->select('i.name')
+        ->selectRaw("SUM(CASE WHEN t.type = 'IN' THEN t.total ELSE 0 END) - SUM(CASE WHEN t.type = 'OUT' THEN t.total ELSE 0 END) AS first_stock")
+        ->whereRaw("t.date < TO_DATE(?, 'MM-YYYY')", [$monthYear])
+        ->groupBy('i.name');
+
+        // Query utama yang menggabungkan current_month_stock dengan first_stock
+        $result = DB::table(DB::raw("({$currentMonthStock->toSql()}) as cms"))
+        ->mergeBindings($currentMonthStock) // Merges bindings for the current month subquery
+        ->leftJoin(DB::raw("({$stockAwal->toSql()}) as sa"), 'cms.name', '=', 'sa.name')
+        ->mergeBindings($stockAwal) // Merges bindings for the first_stock subquery
+        ->select('cms.name')
+        ->selectRaw('COALESCE(sa.first_stock, 0) AS first_stock')
+        ->selectRaw('cms.total_in')
+        ->selectRaw('cms.total_out')
+        ->selectRaw('(COALESCE(sa.first_stock, 0) + cms.total_in - cms.total_out) AS last_stock')
+        ->orderBy('cms.name', 'ASC')
+        ->get();
+
 
         return response()->json([
             'message' => 'Success',

@@ -36,7 +36,7 @@ class ItemController extends Controller
         if ($qSort != null) $items = $items->orderBy('updated_at', $qSort);
         else $items = $items->orderBy('updated_at', 'desc');
 
-        if ($qName != null) $items = $items->where('items.name', $qName);
+        if ($qName != null) $items = $items->where('items.name', 'ilike', '%'.$qName.'%');
         
         $items = $items->get();
         $request->message = 'Success';

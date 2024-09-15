@@ -34,5 +34,6 @@ $router->group(['prefix' => 'api'], function () use ($router) {
         $router->delete('/{id}', 'TransactionController@delete');
         $router->get('/graphic/{year}', 'TransactionController@GetTrxGraphic');
         $router->get('/graphic-specific/{year}/{type}', 'TransactionController@GetTrxGraphicSpecific');
+        $router->get('/monthly-report/{month}/{year}', 'TransactionController@GetReportMonthly');
     });
 });

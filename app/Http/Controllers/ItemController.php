@@ -22,10 +22,10 @@ class ItemController extends Controller
 
     /**
      * List item.
-     * 
+     *
      * @param \Illuminate\Http\Request
-     * 
-     * @return Response
+     *
+     * @return Response|\Illuminate\Http\JsonResponse|object
      */
     public function index(Request $request)
     {
@@ -37,7 +37,7 @@ class ItemController extends Controller
         else $items = $items->orderBy('updated_at', 'desc');
 
         if ($qName != null) $items = $items->where('items.name', 'ilike', '%'.$qName.'%');
-        
+
         $items = $items->get();
         $request->message = 'Success';
         $request->data = $items;
@@ -47,15 +47,15 @@ class ItemController extends Controller
 
     /**
      * Count total items.
-     * 
+     *
      * @param \Illuminate\Http\Request
-     * 
-     * @return Response
+     *
+     * @return Response|\Illuminate\Http\JsonResponse|object
      */
     public function countTotalItems(Request $request)
     {
         $items = Item::select(
-            'items.*', 
+            'items.*',
             DB::raw("CAST(coalesce((select sum(total) from transactions where items_id = items.id and type = 'IN'), 0) - coalesce((select sum(total) from transactions where items_id = items.id and type = 'OUT'), 0) as INTEGER) as total")
         )->get();
         $request->message = 'Success';
@@ -69,8 +69,8 @@ class ItemController extends Controller
      *
      * @param \Illuminate\Http\Request
      * @param  string  $id
-     * 
-     * @return Response
+     *
+     * @return Response|\Illuminate\Http\JsonResponse|object
      */
     public function show(Request $request, $id)
     {
@@ -85,20 +85,21 @@ class ItemController extends Controller
      *
      * @param \Illuminate\Http\Request
      * @bodyParam  string  $name
-     * 
-     * @return Response
+     *
+     * @return Response|\Illuminate\Http\JsonResponse|object
      */
     public function create(Request $request)
     {
-        // Check if item is already 
+        // Check if item is already
         $checkItem = Item::firstWhere('name', $request->name);
         if ($checkItem) {
             $request->message = 'Item already exists';
             return (new ErrorResource($request))->response()->setStatusCode(400);
         }
-        
+
         $newItem = new Item();
         $newItem->name = $request->name;
+        $newItem->created_by = $request->created_by;
 
         $newItem->save();
 
@@ -113,18 +114,18 @@ class ItemController extends Controller
      * @param \Illuminate\Http\Request
      * @param  int  $id
      * @bodyParam  string  $name
-     * 
-     * @return Response
+     *
+     * @return Response|\Illuminate\Http\JsonResponse|object
      */
     public function update(Request $request, $id)
     {
-        // Check if item is already 
+        // Check if item is already
         $checkItem = Item::firstWhere('name', $request->name);
         if ($checkItem) {
             $request->message = 'Item already exists';
             return (new ErrorResource($request))->response()->setStatusCode(400);
         }
-        
+
         $newItem = Item::find($id);
         $newItem->name = $request->name;
 
@@ -140,8 +141,8 @@ class ItemController extends Controller
      *
      * @param \Illuminate\Http\Request
      * @param  int  $id
-     * 
-     * @return Response
+     *
+     * @return Response|\Illuminate\Http\JsonResponse|object
      */
     public function delete(Request $request, $id)
     {

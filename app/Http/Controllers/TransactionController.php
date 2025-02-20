@@ -22,10 +22,10 @@ class TransactionController extends Controller
 
     /**
      * List Transaction.
-     * 
+     *
      * @param \Illuminate\Http\Request
-     * 
-     * @return Response
+     *
+     * @return Response|\Illuminate\Http\JsonResponse|object
      */
     public function index(Request $request)
     {
@@ -51,8 +51,8 @@ class TransactionController extends Controller
      *
      * @param \Illuminate\Http\Request
      * @param  string  $id
-     * 
-     * @return Response
+     *
+     * @return Response|\Illuminate\Http\JsonResponse|object
      */
     public function show(Request $request, $id)
     {
@@ -70,8 +70,8 @@ class TransactionController extends Controller
      * @bodyParam  int  $users_id
      * @bodyParam  string  $type
      * @bodyParam  string  $total
-     * 
-     * @return Response
+     *
+     * @return Response|\Illuminate\Http\JsonResponse|object
      */
     public function create(Request $request)
     {
@@ -79,7 +79,7 @@ class TransactionController extends Controller
         if ($request->type == "OUT") {
             $checkTrxIn = Transaction::select(DB::raw('SUM(total) as total'))->where("items_id", "=", $request->items_id)->where("type", "=", "IN")->first();
             $checkTrxOut = Transaction::select(DB::raw('SUM(total) as total'))->where("items_id", "=", $request->items_id)->where("type", "=", "OUT")->first();
-            
+
             // check no stock
             $total = $checkTrxIn->total - $checkTrxOut->total;
             if ($total < 1) {
@@ -101,6 +101,7 @@ class TransactionController extends Controller
         $transaction->type = $request->type;
         $transaction->total = $request->total;
         $transaction->date = $request->date;
+        $transaction->created_by = $request->created_by;
 
         $transaction->save();
 
@@ -114,8 +115,8 @@ class TransactionController extends Controller
      *
      * @param \Illuminate\Http\Request
      * @param  int  $id
-     * 
-     * @return Response
+     *
+     * @return Response|\Illuminate\Http\JsonResponse|object
      */
     public function delete(Request $request, $id)
     {
@@ -136,8 +137,8 @@ class TransactionController extends Controller
      *
      * @param \Illuminate\Http\Request
      * @param  int  $id
-     * 
-     * @return Response
+     *
+     * @return Response|\Illuminate\Http\JsonResponse|object
      */
     public function GetTrxGraphic($year)
     {
@@ -145,25 +146,25 @@ class TransactionController extends Controller
             'January', 'February', 'March', 'April', 'May', 'June',
             'July', 'August', 'September', 'October', 'November', 'December'
         ];
-        
+
         $data = Transaction::select(DB::raw('SUM(total) as total'), DB::raw("to_char(date, 'Month') as month"))
             ->whereYear('date', $year)
             ->groupBy(DB::raw("to_char(date, 'YYYY-MM'), to_char(date, 'Month')"))
             ->get();
-        
+
         $indexedData = [];
         // dd($data);
         foreach ($data as $item) {
             $indexedData[trim($item->month)] = (int)$item->total;
         }
-        
+
         $result = [];
         foreach ($months as $month) {
             $formattedMonth = strtolower($month);
             $total = isset($indexedData[$month]) ? $indexedData[$month] : 0;
             $result[] = ['month' => $formattedMonth, 'total' => $total];
         }
-        
+
         // Untuk menambahkan bulan yang belum ada dalam data
         for ($i = count($result); $i < 12; $i++) {
             $result[] = ['month' => strtolower($months[$i]), 'total' => 0];
@@ -181,8 +182,8 @@ class TransactionController extends Controller
      *
      * @param \Illuminate\Http\Request
      * @param  int  $id
-     * 
-     * @return Response
+     *
+     * @return Response|\Illuminate\Http\JsonResponse|object
      */
     public function GetTrxGraphicSpecific($year, $type)
     {
@@ -210,14 +211,14 @@ class TransactionController extends Controller
         foreach ($data as $item) {
             $indexedData[trim($item->month)] = (int)$item->total;
         }
-        
+
         $result = [];
         foreach ($months as $month) {
             $formattedMonth = strtolower($month);
             $total = isset($indexedData[$month]) ? $indexedData[$month] : 0;
             $result[] = ['month' => $formattedMonth, 'total' => $total];
         }
-        
+
         // Untuk menambahkan bulan yang belum ada dalam data
         for ($i = count($result); $i < 12; $i++) {
             $result[] = ['month' => strtolower($months[$i]), 'total' => 0];
@@ -236,21 +237,11 @@ class TransactionController extends Controller
      * @param \Illuminate\Http\Request
      * @param  string  $month
      * @param  string  $year
-     * 
-     * @return Response
+     *
+     * @return Response|\Illuminate\Http\JsonResponse|object
      */
     public function GetReportMonthly($month, $year) {
         $monthYear = "${month}-${year}";
-        // $result = DB::table('transactions as t')
-        // ->join('items as i', 'i.id', '=', 't.items_id')
-        // ->select('i.name')
-        // ->selectRaw("SUM(CASE WHEN t.type = 'IN' THEN t.total ELSE 0 END) AS total_in")
-        // ->selectRaw("SUM(CASE WHEN t.type = 'OUT' THEN t.total ELSE 0 END) AS total_out")
-        // ->whereRaw("to_char(t.date, 'MM-YYYY') = ?", $monthYear)
-        // ->groupBy('i.name')
-        // ->get();
-
-
         // Subquery untuk current_month_stock (cms)
         $currentMonthStock = DB::table('transactions as t')
         ->join('items as i', 'i.id', '=', 't.items_id')
